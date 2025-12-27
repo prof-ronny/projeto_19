@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
   runApp(const DiarioApp());
@@ -9,11 +10,9 @@ class DiarioApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Diário Offline PWA',
-      theme: ThemeData(primarySwatch: Colors.blue),
-      home: const DiarioPage(),
+    return const MaterialApp(
       debugShowCheckedModeBanner: false,
+      home: DiarioPage(),
     );
   }
 }
@@ -27,27 +26,47 @@ class DiarioPage extends StatefulWidget {
 
 class _DiarioPageState extends State<DiarioPage> {
   final TextEditingController _controller = TextEditingController();
-  final List<String> _registros = [];
+  List<String> _registros = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _carregarDados();
+  }
+
+  Future<void> _carregarDados() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _registros = prefs.getStringList('registros') ?? [];
+    });
+  }
+
+  Future<void> _salvarDados() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setStringList('registros', _registros);
+  }
 
   void _salvarObservacao() {
     if (_controller.text.isEmpty) return;
 
     final agora = DateTime.now();
-    setState(() {
-      _registros.insert(
-        0,
+    final registro =
         '${agora.day}/${agora.month}/${agora.year} '
         '${agora.hour}:${agora.minute.toString().padLeft(2, '0')}'
-        ' - ${_controller.text}',
-      );
+        ' - ${_controller.text}';
+
+    setState(() {
+      _registros.insert(0, registro);
       _controller.clear();
     });
+
+    _salvarDados();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Diário de Observações')),
+      appBar: AppBar(title: const Text('Diário Offline PWA')),
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -62,15 +81,9 @@ class _DiarioPageState extends State<DiarioPage> {
             const SizedBox(height: 12),
             ElevatedButton(
               onPressed: _salvarObservacao,
-              child: const Text('Salvar observação'),
+              child: const Text('Salvar'),
             ),
-            const SizedBox(height: 20),
             const Divider(),
-            const Text(
-              'Registros',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 10),
             Expanded(
               child: ListView.builder(
                 itemCount: _registros.length,
